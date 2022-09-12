@@ -365,3 +365,69 @@ class NonLinearMultiFidelityModel(IModel, IDifferentiable):
             augmented_input = np.concatenate([X, mean], axis=1)
             mean, variance = self.models[i].predict(augmented_input)
         return mean, variance
+
+class NonLinearMultiFidelityClassificationModel(NonLinearMultiFidelityModel):
+"""
+Non-linear multi-fidelity classification models
+"""
+    def __init__(
+        self,
+        X_init: np.ndarray,
+        Y_init: np.ndarray,
+        n_fidelities,
+        kernels: List[GPy.kern.Kern],
+        n_samples=100,
+        verbose=False,
+        optimization_restarts=5,
+    ) -> None:
+        """
+        By default the noise at intermediate levels will be fixed to 1e-4.
+
+        :param X_init: Initial X values.
+        :param Y_init: Initial Y values.
+        :param n_fidelities: Number of fidelities in problem.
+        :param kernels: List of kernels for each GP model at each fidelity. The first kernel should take input of
+                        dimension d_in and each subsequent kernel should take input of dimension (d_in+1) where d_in is
+                        the dimensionality of the features.
+        :param n_samples: Number of samples to use to do quasi-Monte-Carlo integration at each fidelity. Default 100
+        :param verbose: Whether to output messages during optimization. Defaults to False.
+        :param optimization_restarts: Number of random restarts
+                                      when optimizing the Gaussian processes' hyper-parameters.
+        """
+
+        if not isinstance(X_init, np.ndarray):
+            raise TypeError("X_init expected to be a numpy array")
+
+        if not isinstance(Y_init, np.ndarray):
+            raise TypeError("Y_init expected to be a numpy array")
+
+        self.verbose = verbose
+        self.optimization_restarts = optimization_restarts
+
+        self.n_fidelities = n_fidelities
+
+        # Generate random numbers from standardized gaussian for monte-carlo integration
+        self.monte_carlo_rand_numbers = np.random.randn(n_samples)[:, np.newaxis]
+
+        # Make lowest fidelity model
+        self.models = []
+
+        self._fidelity_idx = -1
+
+        is_lowest_fidelity = X_init[:, self._fidelity_idx] == 0
+        self.models.append(
+            GPy.models.GPClassification(X_init[is_lowest_fidelity, :-1], Y_init[is_lowest_fidelity, :], kernels[0])
+        )
+
+        # Make models for fidelities but lowest fidelity
+        for i in range(1, self.n_fidelities):
+            is_ith_fidelity = X_init[:, self._fidelity_idx] == i
+            # Append previous fidelity mean to X
+            previous_mean, _ = self._predict_deterministic(X_init[is_ith_fidelity, :-1], i)
+
+            augmented_input = np.concatenate([X_init[is_ith_fidelity, :-1], previous_mean], axis=1)
+            self.models.append(GPy.models.GPClassification(augmented_input, Y_init[is_ith_fidelity, :], kernels[i]))
+
+        # Fix noise parameters for all models except top fidelity
+        for model in self.models[:-1]:
+            model.Gaussian_noise.fix(1e-4)    

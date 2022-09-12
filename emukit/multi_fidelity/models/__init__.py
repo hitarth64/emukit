@@ -3,4 +3,4 @@
 
 
 from .linear_model import GPyLinearMultiFidelityModel  # noqa: F401
-from .non_linear_multi_fidelity_model import NonLinearMultiFidelityModel  # noqa: F401
+from .non_linear_multi_fidelity_model import NonLinearMultiFidelityModel, NonLinearMultiFidelityClassificationModel  # noqa: F401

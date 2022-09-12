@@ -367,9 +367,9 @@ class NonLinearMultiFidelityModel(IModel, IDifferentiable):
         return mean, variance
 
 class NonLinearMultiFidelityClassificationModel(NonLinearMultiFidelityModel):
-"""
-Non-linear multi-fidelity classification models
-"""
+    """
+    Non-linear multi-fidelity classification models
+    """
     def __init__(
         self,
         X_init: np.ndarray,

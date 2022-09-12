@@ -427,7 +427,3 @@ class NonLinearMultiFidelityClassificationModel(NonLinearMultiFidelityModel):
 
             augmented_input = np.concatenate([X_init[is_ith_fidelity, :-1], previous_mean], axis=1)
             self.models.append(GPy.models.GPClassification(augmented_input, Y_init[is_ith_fidelity, :], kernels[i]))
-
-        # Fix noise parameters for all models except top fidelity
-        for model in self.models[:-1]:
-            model.Gaussian_noise.fix(1e-4)    
